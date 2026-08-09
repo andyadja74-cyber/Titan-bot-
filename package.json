@@ -1,0 +1,28 @@
+{
+  "name": "bot-titan",
+  "version": "1.0.0",
+  "description": "Bot WhatsApp Titan hébergé sur Render",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "whatsapp",
+    "bot",
+    "baileys",
+    "titan"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.6.0",
+    "axios": "^1.6.8",
+    "express": "^4.19.2",
+    "fluent-ffmpeg": "^2.1.2",
+    "google-tts-api": "^0.0.8",
+    "gtts": "^0.2.2",
+    "pino": "^8.20.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
