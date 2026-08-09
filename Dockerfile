@@ -1,32 +1,21 @@
-# Utilisation d'une image Python basée sur Debian (slim pour être léger)
-FROM python:3.10-slim
+# Utilise une version stable et légère de Node.js
+FROM node:18-slim
 
-# Évite que Python n'écrive des fichiers .pyc et force l'affichage direct des logs
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# Installe les dépendances système requises (avec libstdc++6 au lieu de stdc++6)
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libstdc++6 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Définition du répertoire de travail
+# Définition du répertoire de travail dans le conteneur
 WORKDIR /app
 
-# Copie d'abord les fichiers de dépendances pour profiter du cache Docker
-COPY requirements.txt /app/
+# Copie d'abord package.json et package-lock.json pour utiliser le cache Docker
+COPY package*.json ./
 
-# Installation des dépendances Python
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+# Installation des dépendances du projet
+RUN npm install
 
-# Copie du reste du code de l'application
-COPY . /app/
+# Copie le reste des fichiers du projet
+COPY . .
 
-# Expose le port (ajuste selon ton besoin, ex: 8000, 5000, 10000)
-EXPOSE 10000
+# Expose le port (modifie 3000 si ton application utilise un autre port)
+EXPOSE 3000
 
-# Commande pour démarrer l'application
-CMD ["python", "main.py"]
+# Commande pour lancer l'application (ajuste 'index.js' si ton fichier principal a un autre nom, ex: 'app.js' ou 'server.js')
+CMD ["node", "index.js"]
+
