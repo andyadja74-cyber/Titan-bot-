@@ -7,9 +7,10 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "6.7.18",
-    "express": "4.19.2",
-    "google-tts-api": "2.0.2",
-    "gtts": "0.2.1"
+    "@whiskeysockets/baileys": "^6.7.18",
+    "express": "^4.19.2",
+    "google-tts-api": "^2.0.2",
+    "gtts": "^0.2.1",
+    "fluent-ffmpeg": "^2.1.2"
   }
 }
