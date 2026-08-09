@@ -20,7 +20,7 @@
     "axios": "^1.6.8",
     "express": "^4.19.2",
     "fluent-ffmpeg": "^2.1.2",
-    "google-tts-api": "^0.0.8",
+    "google-tts-api": "^2.0.2",
     "gtts": "^0.2.2",
     "pino": "^8.20.0",
     "qrcode-terminal": "^0.12.0"
