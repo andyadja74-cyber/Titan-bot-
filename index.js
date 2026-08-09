@@ -120,7 +120,7 @@ async function startBot() {
 
   // Gestion du Pair Code pour connexion WhatsApp
   if (!sock.authState.creds.registered) {
-    const phoneNumber = process.env.PHONE_NUMBER || "2250594208423";
+    const phoneNumber = process.env.PHONE_NUMBER || "2250141606159";
     setTimeout(async () => {
       try {
         let code = await sock.requestPairingCode(phoneNumber.replace(/[^0-9]/g, ""));
