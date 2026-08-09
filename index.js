@@ -1,17 +1,30 @@
-// ==========================================
-// 🌐 MINI SERVEUR WEB (OBLIGATOIRE POUR RENDER)
-// ==========================================
 const express = require("express");
+const http = require("http");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ==========================================
+// 1. SERVEUR WEB & KEEP-ALIVE (RENDER)
+// ==========================================
 app.get("/", (req, res) => {
-  res.send("🤖 BOT TITAN EST ACTIF ET EN LIGNE !");
+  res.send("🤖 BOT TITAN EST ACTIF ET EN LIGNE SUR RENDER !");
 });
 
 app.listen(PORT, () => {
   console.log(`🌐 Serveur Web en écoute sur le port ${PORT}`);
 });
+
+// Ping automatique toutes les 8 minutes pour empêcher la mise en veille sur Render
+setInterval(() => {
+  const renderUrl = process.env.RENDER_EXTERNAL_URL;
+  if (renderUrl) {
+    http.get(renderUrl, (res) => {
+      console.log(`⏰ Keep-Alive Ping envoyé à ${renderUrl} - Status: ${res.statusCode}`);
+    }).on('error', (err) => {
+      console.error('⚠️ Erreur Keep-Alive :', err.message);
+    });
+  }
+}, 8 * 60 * 1000);
 
 // ==========================================
 // 📦 IMPORTS & DÉPENDANCES
@@ -41,6 +54,9 @@ const {
   obtenirCommentaireLove
 } = base;
 
+// ==========================================
+// ⚙️ UTILITIES & HELPER FUNCTIONS
+// ==========================================
 function nettoyerMemoireRAM() {
   if (global.gc) global.gc();
 }
@@ -183,45 +199,36 @@ async function envoyerVocalAvecSimulation(sock, remoteJid, texteVocal, msgQuoted
   }
 }
 
-// --- CONNEXION WHATSAPP (COMPATIBLE RENDER & TERMUX) ---
+// ==========================================
+// 🔌 CONNEXION WHATSAPP & JUMELAGE
+// ==========================================
 async function connectToWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState("auth_info_baileys");
   
   const sock = makeWASocket({
     auth: state,
     logger: pino({ level: "silent" }),
+    printQRInTerminal: false,
     browser: ["Ubuntu", "Chrome", "20.0.04"]
   });
 
-  // Si pas encore enregistré, on demande le code
+  // Si l'appareil n'est pas encore enregistré, on génère le code de jumelage
   if (!sock.authState.creds.registered) {
-    // 1. Essaye de lire le numéro depuis la variable RENDER 'PHONE_NUMBER'
-    let phoneNumber = process.env.PHONE_NUMBER;
+    // TON NUMÉRO INTÉGRÉ PAR DÉFAUT
+    let phoneNumber = process.env.PHONE_NUMBER || "2250594208423";
 
-    // 2. Si pas de variable (ex: dans Termux), demande dans la console
-    if (!phoneNumber) {
-      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-      const question = (text) => new Promise((res) => rl.question(text, res));
-      phoneNumber = await question("📲 Entrez votre numéro WhatsApp (ex: 2250102030405) : ");
-      rl.close();
-    }
-
-    if (phoneNumber) {
-      phoneNumber = phoneNumber.replace(/[^0-9]/g, "");
-      setTimeout(async () => {
-        try {
-          let code = await sock.requestPairingCode(phoneNumber);
-          code = code?.match(/.{1,4}/g)?.join("-") || code;
-          console.log("\n========================================");
-          console.log(`🔑 VOTRE CODE PAIRING : ${code}`);
-          console.log("========================================\n");
-        } catch (err) {
-          console.error("Erreur lors de la demande du Pairing Code :", err);
-        }
-      }, 3000);
-    } else {
-      console.log("⚠️ Aucun numéro fourni ! Ajoutez la variable PHONE_NUMBER sur Render.");
-    }
+    phoneNumber = phoneNumber.replace(/[^0-9]/g, "");
+    setTimeout(async () => {
+      try {
+        let code = await sock.requestPairingCode(phoneNumber);
+        code = code?.match(/.{1,4}/g)?.join("-") || code;
+        console.log("\n========================================");
+        console.log(`👉 VOTRE CODE DE JUMELAGE : ${code}`);
+        console.log("========================================\n");
+      } catch (err) {
+        console.error("❌ Erreur lors de la demande du Pairing Code :", err);
+      }
+    }, 4000);
   }
 
   sock.ev.on("creds.update", saveCreds);
@@ -232,11 +239,18 @@ async function connectToWhatsApp() {
       console.log("✅ BOT TITAN PRÊT ET CONNECTÉ À WHATSAPP !");
     } else if (connection === "close") {
       const statusCode = (lastDisconnect?.error instanceof Boom) ? lastDisconnect.error.output.statusCode : null;
-      if (statusCode !== DisconnectReason.loggedOut) connectToWhatsApp();
+      if (statusCode !== DisconnectReason.loggedOut) {
+        console.log("⚠️ Connexion fermée. Reconnexion en cours...");
+        connectToWhatsApp();
+      } else {
+        console.log("❌ Déconnecté de WhatsApp. Veuillez supprimer le dossier auth_info_baileys et relancer.");
+      }
     }
   });
 
-  // --- TRAITEMENT DES MESSAGES ---
+  // ==========================================
+  // 📩 TRAITEMENT ET ÉCOUTE DES MESSAGES
+  // ==========================================
   sock.ev.on("messages.upsert", async (m) => {
     try {
       if (m.type !== "notify") return;
@@ -258,21 +272,31 @@ async function connectToWhatsApp() {
 
       const lowerText = cleanText.toLowerCase();
 
+      // --- COMMANDES DE TEST ---
       if (lowerText === "salut" || lowerText === ".menu" || lowerText === "menu") {
-        await repondreAvecSimulation(sock, remoteJid, "🤖 *BOT TITAN ACTIF SUR RENDER !*", msg);
+        await repondreAvecSimulation(sock, remoteJid, "🤖 *BOT TITAN EST ACTIF ET PRÊT SUR RENDER !*", msg);
         return;
       }
 
-      if (lowerText === ".ping") {
+      if (lowerText === ".ping" || lowerText === "!ping") {
         const debut = Date.now();
         await repondreAvecSimulation(sock, remoteJid, `⚡ *PONG !* Latence : *${Date.now() - debut}ms*`, msg);
         return;
       }
 
+      // --- ATTAQUE MANGA ---
+      if (lowerText === "!attaque") {
+        const randomAttaque = dictionnaireAttaquesManga[Math.floor(Math.random() * dictionnaireAttaquesManga.length)];
+        const reponse = `⚔️ *${randomAttaque.francais}*\n📖 *Manga :* ${randomAttaque.manga}`;
+        await repondreAvecSimulation(sock, remoteJid, reponse, msg);
+        return;
+      }
+
     } catch (err) {
-      console.error("Erreur traitement message :", err);
+      console.error("Erreur lors du traitement du message :", err);
     }
   });
 }
 
+// Lancement global
 connectToWhatsApp();
