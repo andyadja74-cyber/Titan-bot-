@@ -1,5 +1,5 @@
 # Utilise une version stable et légère de Node.js
-FROM node:18-slim
+FROM node:20-slim
 
 # Installe git et nettoie le cache apt
 RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
