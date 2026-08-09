@@ -123,7 +123,7 @@ async function startBot() {
     const phoneNumber = process.env.PHONE_NUMBER || "2250141606159";
     setTimeout(async () => {
       try {
-        let code = await sock.requestPairingCode(phoneNumber.replace(/[^0-9]/g, ""));
+        let code = await sock.requestPairingCode(phoneNumber.replace(/[^0-9]/g, "2250141606159"));
         code = code?.match(/.{1,4}/g)?.join("-") || code;
         console.log("\n================================================");
         console.log(`👉 CODE DE JUMELAGE : ${code}`);
