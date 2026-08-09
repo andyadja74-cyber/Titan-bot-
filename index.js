@@ -462,4 +462,226 @@ Pour vue qu'elle ne le sache pas ohh 😬`;
 
 💡 *ASTUCE JEU :* En partie, mettez toujours **@** devant votre réponse (ex: *@paris*) pour que le bot la prenne en compte ! Vous pouvez parler normalement sans gêner le jeu.`;
 
-        await sock.sendMessage(remoteJid, { text: menuText, mentions: [senderJid] }, { quoted
+        await sock.sendMessage(remoteJid, { text: menuText, mentions: [senderJid] }, { quoted: msg });
+        return;
+      }
+
+      // ----------------------------------------------------
+      // 🕹️ COMMANDES DE JEUX SPÉCIFIQUES
+      // ----------------------------------------------------
+
+      // 1. Labyrinthe Multi-modes
+      if (lowerText.startsWith('.labyrinthe')) {
+        const args = cleanText.split(" ");
+        const mode = args[1]?.toLowerCase();
+
+        if (!mode) {
+          const menuLaby = `🌀 *JEU DU LABYRINTHE MULTI-MODES* 🌀\n\n1️⃣ **.labyrinthe solo**\n2️⃣ **.labyrinthe equipe**\n3️⃣ **.labyrinthe duel**`;
+          await sock.sendMessage(remoteJid, { text: menuLaby }, { quoted: msg });
+          return;
+        }
+
+        if (mode === 'solo') {
+          await sock.sendMessage(remoteJid, { text: `👤 *MODE SOLO :* Répondez avec *@nord*, *@sud*, *@est* ou *@ouest* pour avancer !` }, { quoted: msg });
+          return;
+        }
+
+        if (mode === 'equipe' && isGroup) {
+          reinitialiserJeu(remoteJid);
+          partiesEnCours[remoteJid] = { type: 'LABYRINTHE_EQUIPE', statut: 'INSCRIPTION', manche: 0, joueurs: [] };
+          demarrerTimerInactivite(sock, remoteJid);
+          await sock.sendMessage(remoteJid, { text: `👥 *SALON OUVERT : LABYRINTHE ÉQUIPE !*\n👉 **.inscrire <surnom>** puis **.jouer** !` }, { quoted: msg });
+          return;
+        }
+
+        if (mode === 'duel' && isGroup) {
+          reinitialiserJeu(remoteJid);
+          partiesEnCours[remoteJid] = { type: 'LABYRINTHE_DUEL', statut: 'INSCRIPTION', manche: 0, joueurs: [] };
+          demarrerTimerInactivite(sock, remoteJid);
+          await sock.sendMessage(remoteJid, { text: `⚔️ *SALON OUVERT : LABYRINTHE DUEL !*\n👉 **.inscrire <surnom>** puis **.jouer** !` }, { quoted: msg });
+          return;
+        }
+      }
+
+      // 2. Chasse à l'Emoji
+      if (lowerText === '.chasse-emoji' && isGroup) {
+        reinitialiserJeu(remoteJid);
+        const emojiCible = EMOJIS_DICO[Math.floor(Math.random() * EMOJIS_DICO.length)];
+        partiesEnCours[remoteJid] = { type: 'CHASSE A L\'EMOJI', statut: 'EN_COURS', cible: emojiCible, manche: 1, joueurs: [] };
+        demarrerTimerInactivite(sock, remoteJid);
+
+        await sock.sendMessage(remoteJid, {
+          text: `🎯 *CHASSE À L'EMOJI !*\n\n👉 Envoyez l'emoji **${emojiCible}** précédé de **@** (ex: *@${emojiCible}*) pour gagner !`,
+        }, { quoted: msg });
+        return;
+      }
+
+      // 3. Chiffre Mystère
+      if (lowerText === '.chiffremystere' && isGroup) {
+        reinitialiserJeu(remoteJid);
+        const secret = Math.floor(Math.random() * 100) + 1;
+        partiesEnCours[remoteJid] = { type: 'CHIFFRE MYSTÈRE', statut: 'EN_COURS', nombre: secret, manche: 1, joueurs: [] };
+        demarrerTimerInactivite(sock, remoteJid);
+
+        await sock.sendMessage(remoteJid, {
+          text: `🔢 *CHIFFRE MYSTÈRE DÉMARRÉ !*\n\nLe bot a choisi un nombre entre **1 et 100**.\n👉 Proposez vos chiffres avec **@** (ex: *@45*) !`,
+        }, { quoted: msg });
+        return;
+      }
+
+      // 4. Baccalauréat
+      if (lowerText === '.bac' && isGroup) {
+        reinitialiserJeu(remoteJid);
+        partiesEnCours[remoteJid] = { type: 'BACCALAURÉAT', statut: 'INSCRIPTION', manche: 0, joueurs: [] };
+        demarrerTimerInactivite(sock, remoteJid);
+
+        await sock.sendMessage(remoteJid, { text: `🔤 *SALON OUVERT : BACCALAURÉAT !*\n\n👉 **.inscrire <surnom>** puis **.jouer** !` }, { quoted: msg });
+        return;
+      }
+
+      // 5. Capitales
+      if (lowerText === '.capitales') {
+        const item = CAPITALES_DICO[Math.floor(Math.random() * CAPITALES_DICO.length)];
+        await sock.sendMessage(remoteJid, { text: `🏛️ *JEU DES CAPITALES :*\n\nQuelle est la capitale de ce pays : **${item.pays}** ?\n👉 Répondez avec *@capitale* !` }, { quoted: msg });
+        return;
+      }
+
+      // 6. Énigme
+      if (lowerText === '.enigme') {
+        const e = ENIGMES[Math.floor(Math.random() * ENIGMES.length)];
+        await sock.sendMessage(remoteJid, { text: `❓ *ÉNIGME :*\n\n${e.q}\n👉 Répondez avec *@votre_réponse* !` }, { quoted: msg });
+        return;
+      }
+
+      // 7. Citation Manga
+      if (lowerText === '.citationmanga') {
+        const citation = CITATIONS_MANGA[Math.floor(Math.random() * CITATIONS_MANGA.length)];
+        await sock.sendMessage(remoteJid, { text: `⛩️ *CITATION MANGA / ANIME :*\n\n${citation}` }, { quoted: msg });
+        return;
+      }
+
+      // 8. Roulette Russe
+      if (lowerText === '.roulette') {
+        if (!verifierCooldown(remoteJid, 'roulette')) return;
+        const pan = Math.floor(Math.random() * 6) === 0;
+        await sock.sendMessage(remoteJid, { text: pan ? '💥 *PAN !* Vous avez été éliminé ! 💀' : '📄 *CLIC !* Balle à blanc. Vous survivez ! 🎉' }, { quoted: msg });
+        return;
+      }
+
+      // ----------------------------------------------------
+      // 🛠️ COMMANDES D'UTILITAIRES & MÉDIAS
+      // ----------------------------------------------------
+
+      // Secret VIP
+      if (lowerText === '.secret' || lowerText === 'secret') {
+        userState[senderJid] = 'WAITING_SECRET_PASSWORD';
+        await sock.sendMessage(remoteJid, { text: "🔑 *ACCÈS VIP SÉCURISÉ*\n\nVeuillez entrer le mot de passe de déverrouillage :" }, { quoted: msg });
+        return;
+      }
+
+      // Ping
+      if (lowerText === '.ping') {
+        const debut = Date.now();
+        await sock.sendMessage(remoteJid, { text: `⚡ *PONG !*\n⏱️ Latence : *${Date.now() - debut}ms*\n🟢 Render : Active 24/7` }, { quoted: msg });
+        return;
+      }
+
+      // Photo de Profil (.pp)
+      if (lowerText.startsWith('.pp')) {
+        let cible = senderJid;
+        const mentions = msg.message.extendedTextMessage?.contextInfo?.mentionedJid;
+        if (mentions && mentions.length > 0) cible = mentions[0];
+
+        try {
+          const ppUrl = await sock.profilePictureUrl(cible, 'image');
+          await sock.sendMessage(remoteJid, { image: { url: ppUrl }, caption: '📸 Photo de profil :' }, { quoted: msg });
+        } catch {
+          await sock.sendMessage(remoteJid, { text: '❌ Impossible d\'obtenir la photo de profil.' }, { quoted: msg });
+        }
+        return;
+      }
+
+      // Vue Unique Débloquée (.vu)
+      if (lowerText === '.vu') {
+        const quotedMsg = msg.message.extendedTextMessage?.contextInfo?.quotedMessage;
+        const viewOnce = quotedMsg?.viewOnceMessageV2?.message || quotedMsg?.viewOnceMessage?.message;
+
+        if (!viewOnce) {
+          await sock.sendMessage(remoteJid, { text: '⚠️ Repondez à un message en vue unique avec `.vu`.' }, { quoted: msg });
+          return;
+        }
+
+        const type = Object.keys(viewOnce)[0];
+        const media = viewOnce[type];
+        const stream = await downloadContentFromMessage(media, type.replace('Message', ''));
+
+        let buffer = Buffer.from([]);
+        for await (const chunk of stream) buffer = Buffer.concat([buffer, chunk]);
+
+        if (type === 'imageMessage') {
+          await sock.sendMessage(remoteJid, { image: buffer, caption: '🔓 Image vue unique débloquée !' }, { quoted: msg });
+        } else if (type === 'videoMessage') {
+          await sock.sendMessage(remoteJid, { video: buffer, caption: '🔓 Vidéo vue unique débloquée !' }, { quoted: msg });
+        } else if (type === 'audioMessage') {
+          await sock.sendMessage(remoteJid, { audio: buffer, mimetype: 'audio/mp4', ptt: true }, { quoted: msg });
+        }
+        return;
+      }
+
+      // Synthèse Vocale (.tts)
+      if (lowerText.startsWith('.tts ')) {
+        const texteTts = cleanText.substring(5);
+        const urlAudio = googleTTS.getAudioUrl(texteTts, { lang: 'fr', slow: false });
+        await sock.sendMessage(remoteJid, { audio: { url: urlAudio }, mimetype: 'audio/mp4', ptt: true }, { quoted: msg });
+        return;
+      }
+
+      // Générateur QR Code (.qr)
+      if (lowerText.startsWith('.qr ')) {
+        const contenuQr = cleanText.substring(4);
+        const qrBuffer = await QRCode.toBuffer(contenuQr);
+        await sock.sendMessage(remoteJid, { image: qrBuffer, caption: '🔲 Votre QR Code :' }, { quoted: msg });
+        return;
+      }
+
+      // Profil / Compte XP
+      if (lowerText === '.compte' || lowerText === '.profil') {
+        const xp = xpDatabase[senderJid] || 10;
+        await sock.sendMessage(remoteJid, { 
+          text: `📊 *PROFIL UTILISATEUR*\n\n👤 Utilisateur : @${senderJid.split('@')[0]}\n⭐ Niveau : *${Math.floor(xp / 50) + 1}*\n🔥 Points XP : *${xp} XP*`,
+          mentions: [senderJid]
+        }, { quoted: msg });
+        return;
+      }
+
+      // Tag All Groupe
+      if (lowerText === '.tagall' && isGroup) {
+        const groupMetadata = await sock.groupMetadata(remoteJid);
+        const participants = groupMetadata.participants;
+        let txt = "📢 *TAG ALL GROUPE !*\n\n";
+        const mentionsArr = [];
+        for (let p of participants) {
+          txt += `@${p.id.split('@')[0]}\n`;
+          mentionsArr.push(p.id);
+        }
+        await sock.sendMessage(remoteJid, { text: txt, mentions: mentionsArr });
+        return;
+      }
+
+      // Antilink Toggle
+      if (lowerText === '.antilink' && isGroup) {
+        antilinkGroups[remoteJid] = !antilinkGroups[remoteJid];
+        await sock.sendMessage(remoteJid, { text: `🛡️ Protection Anti-Lien : *${antilinkGroups[remoteJid] ? "ACTIVÉE 🔒" : "DÉSACTIVÉE 🔓"}*` }, { quoted: msg });
+        return;
+      }
+
+      // Accumulation d'Expérience (XP)
+      xpDatabase[senderJid] = (xpDatabase[senderJid] || 0) + 2;
+
+    } catch (err) {
+      console.error("Erreur globale :", err);
+    }
+  });
+}
+
+startBot();
