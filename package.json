@@ -9,8 +9,10 @@
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.18",
     "express": "^4.19.2",
+    "fluent-ffmpeg": "^2.1.2",
     "google-tts-api": "^2.0.2",
     "gtts": "^0.2.1",
-    "fluent-ffmpeg": "^2.1.2"
+    "qrcode": "^1.5.3",
+    "qrcode-terminal": "^0.12.0"
   }
 }
