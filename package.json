@@ -1,0 +1,17 @@
+{
+  "name": "titan-bot",
+  "version": "1.0.0",
+  "description": "Bot WhatsApp Titan Ultimate avec jeux et outils",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.5.0",
+    "express": "^4.18.2",
+    "google-this": "^1.8.0",
+    "pino": "^8.14.0",
+    "qrcode": "^1.5.3",
+    "ytdl-core": "^4.11.5"
+  }
+}

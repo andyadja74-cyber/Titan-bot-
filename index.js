@@ -4,14 +4,18 @@ const {
   default: makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
-  fetchLatestBaileysVersion,
-  downloadContentFromMessage
+  fetchLatestBaileysVersion
 } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const QRCode = require('qrcode');
+const ytdl = require('ytdl-core');
+const google = require('google-this');
+
+// 🔗 LIEN AVEC LA BANQUE DE DONNÉES (data.js)
+const { DICTIONNAIRE, COMMENTAIRES_LOVE, CITATIONS } = require('./data');
 
 // ==========================================
-// ⚙️ CONFIGURATION & PROTECTION CRASH
+// ⚙️ SERVEUR WEB & KEEP-ALIVE (24/7)
 // ==========================================
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,10 +23,7 @@ const PORT = process.env.PORT || 3000;
 process.on('uncaughtException', (err) => console.error('⚠️ Erreur évitée :', err));
 process.on('unhandledRejection', (reason) => console.error('⚠️ Promesse rejetée :', reason));
 
-// ==========================================
-// 🌐 SERVEUR WEB & KEEP-ALIVE 24/7
-// ==========================================
-app.get("/", (req, res) => res.send("🤖 BOT TITAN ULTIMATE - EN LIGNE !"));
+app.get("/", (req, res) => res.send("🤖 BOT TITAN ULTIMATE - EN LIGNE 24/7 !"));
 app.get("/health", (req, res) => res.status(200).send("OK"));
 app.listen(PORT, () => console.log(`🌐 Serveur actif sur le port ${PORT}`));
 
@@ -35,73 +36,56 @@ setInterval(() => {
 }, 8 * 60 * 1000);
 
 // ==========================================
-// 🧠 BASES DE DONNÉES EN MÉMOIRE
+// 🧠 MÉMOIRE TEMPORAIRE & DONNÉES DE JEUX
 // ==========================================
 const partiesEnCours = {}; 
 const timersInactivite = {};
 
-// ==========================================
-// 📚 DONNÉES DES JEUX (LABYRINTHES & EMOJIS)
-// ==========================================
 const ENVIRONNEMENTS_LABYRINTHE = {
   ocean: {
     nom: "🌊 Les Abysses de l'Océan",
-    mortMessage: "🌊 *ASPHYXIE TOTALE !* Votre combinaison a cédé sous la pression...",
     etapes: [
-      { desc: "🌊 *Étape 1 - La Fosse Noire :*\n👉 Répondez : *@plonger* ou *@grotte*", options: { plonger: 2, grotte: "piege" } },
-      { desc: "🦈 *Étape 2 - La Silhouette Abyssale :*\n👉 Répondez : *@esquiver* ou *@fusil*", options: { esquiver: 3, fusil: "combat" } },
-      { desc: "🗝️ *Étape 3 - Le Sous-Marin Abandonné :*\n👉 Répondez : *@ouvrir* ou *@briser*", options: { ouvrir: 4, briser: "piege" } },
-      { desc: "🏆 *RETOUR À LA SURFACE !* Vous êtes sains et saufs !", options: "victoire" }
+      { desc: "🌊 *Étape 1 - La Fosse Noire :*\n👉 Répondez : *@plonger* ou *@grotte*" },
+      { desc: "🦈 *Étape 2 - La Silhouette Abyssale :*\n👉 Répondez : *@esquiver* ou *@fusil*" },
+      { desc: "🏆 *RETOUR À LA SURFACE !* Vous êtes sains et saufs !" }
     ]
   },
   espace: {
     nom: "🚀 La Station Spatiale Dérivante",
-    mortMessage: "🌌 *DÉCOMPRESSION !* Vous dérivez sans retour...",
     etapes: [
-      { desc: "🚀 *Étape 1 - Le Module d'Acouplage :*\n👉 Répondez : *@gauche* ou *@droite*", options: { gauche: 2, droite: "piege" } },
-      { desc: "👾 *Étape 2 - L'Ombre Extraterrestre :*\n👉 Répondez : *@ejecter* ou *@tirer*", options: { ejecter: 3, tirer: "combat" } },
-      { desc: "🛸 *Étape 3 - La Capsule de Secours :*\n👉 Répondez : *@pirater* ou *@forcer*", options: { pirater: 4, forcer: "piege" } },
-      { desc: "🏆 *DÉCOLLAGE RÉUSSI !* Capsule détachée !", options: "victoire" }
-    ]
-  },
-  donjon: {
-    nom: "🏛️ Le Labyrinthe du Minotaure",
-    mortMessage: "💀 *ÉCRASEMENT !* Les pièges antiques se sont refermés...",
-    etapes: [
-      { desc: "🚪 *Étape 1 - L'Entrée Sombre :*\n👉 Répondez : *@est* ou *@ouest*", options: { est: 2, ouest: "piege" } },
-      { desc: "🗝️ *Étape 2 - La Salle des Sacrifices :*\n👉 Répondez : *@prendre* ou *@nord*", options: { prendre: "clef", nord: 3 } },
-      { desc: "🧟 *Étape 3 - Le Gardien de Pierre :*\n👉 Répondez : *@attaquer* ou *@fuir*", options: { attaquer: "combat", fuir: 1 } },
-      { desc: "🏆 *SALLE DU TRÉSOR !* Sortie débloquée !", options: "victoire" }
-    ]
-  },
-  temple: {
-    nom: "🏜️ Le Temple Perdu d'Anubis",
-    mortMessage: "Scorpion *CATACOMBES SACRÉES !* Le sable vous a engloutis...",
-    etapes: [
-      { desc: "🚪 *Étape 1 - La Fresque Maudite :*\n👉 Répondez : *@nord* ou *@sud*", options: { nord: 2, sud: "piege" } },
-      { desc: "🧪 *Étape 2 - L'Autel des Divinités :*\n👉 Répondez : *@boire* ou *@est*", options: { boire: "soin", est: 3 } },
-      { desc: "🦂 *Étape 3 - La Née de Scorpions :*\n👉 Répondez : *@attaquer* ou *@est*", options: { attaquer: "combat", est: 4 } },
-      { desc: "🏆 *LÉGENDE ÉGYPTIENNE !* Sanctuaire atteint !", options: "victoire" }
+      { desc: "🚀 *Étape 1 - Le Module d'Acouplage :*\n👉 Répondez : *@gauche* ou *@droite*" },
+      { desc: "🏆 *DÉCOLLAGE RÉUSSI !* Capsule détachée !" }
     ]
   }
 };
 
-const MOTS_SQUID = [
-  { mot: "FLEUR 🌸", temps: 5 }, { mot: "TORNADE 🌪️", temps: 5 },
-  { mot: "CHÂTEAU 🏰", temps: 5 }, { mot: "SQUIDCAMP 🦑", temps: 6 }
-];
-
-const CINEMATIQUES_ELIMINATION = [
-  "🔫 *RATATATATA !* La poupée géante s'est retournée !",
-  "🎯 *SNIPER EN POSITION !* Cible neutralisée !",
-  "💥 *BOOOM !* Détection de mouvement confirmée !"
-];
-
-const OBJECTIFS_DE = [6, 4, 2, 5, 3];
-const EMOJIS_DICO = ["🦁", "🍕", "🚀", "👑", "⚽", "🎮", "🎸", "💎", "🔥", "🎯"];
+const EMOJIS_DICO = ["🦁", "🍕", "🚀", "👑", "⚽", "🎮", "💎", "🔥"];
 
 // ==========================================
-// ⏱️ FONCTION D'ENVOI ET SIMULATION ÉCRITURE
+// ⏱️ GESTION DU TIMEOUT & NETTOYAGE (2 MIN)
+// ==========================================
+function reinitialiserJeu(groupId) {
+  if (partiesEnCours[groupId]) {
+    if (timersInactivite[groupId]) clearTimeout(timersInactivite[groupId]);
+    delete partiesEnCours[groupId];
+    delete timersInactivite[groupId];
+  }
+}
+
+function demarrerTimerInactivite(sock, groupId) {
+  if (timersInactivite[groupId]) clearTimeout(timersInactivite[groupId]);
+  timersInactivite[groupId] = setTimeout(async () => {
+    if (partiesEnCours[groupId]) {
+      reinitialiserJeu(groupId);
+      await envoyerAvecDelai(sock, groupId, { 
+        text: "🧹 *NETTOYAGE AUTOMATIQUE :* Session fermée après 2 minutes d'inactivité." 
+      });
+    }
+  }, 2 * 60 * 1000);
+}
+
+// ==========================================
+// ⏱️ FONCTION D'ENVOI AVEC STATUT COMPOSING
 // ==========================================
 function calculerDelaiEnvoi(texte) {
   if (!texte || typeof texte !== 'string') return 1000;
@@ -123,46 +107,8 @@ async function envoyerAvecDelai(sock, remoteJid, content, options = {}, original
 
     return await sock.sendMessage(remoteJid, content, options);
   } catch (err) {
-    console.error("⚠️ Erreur d'envoi :", err);
+    console.error("⚠️ Erreur lors de l'envoi :", err);
   }
-}
-
-// ==========================================
-// 🛠️ UTILS JEUX
-// ==========================================
-function choisirJoueurAleatoire(listeJoueurs, joueurActuelJid = null) {
-  if (!listeJoueurs || listeJoueurs.length === 0) return null;
-  const candidats = listeJoueurs.filter(j => j.jid !== joueurActuelJid);
-  return (candidats.length > 0 ? candidats : listeJoueurs)[Math.floor(Math.random() * (candidats.length || 1))];
-}
-
-function reinitialiserJeu(groupId) {
-  if (partiesEnCours[groupId]) {
-    if (timersInactivite[groupId]) clearTimeout(timersInactivite[groupId]);
-    if (partiesEnCours[groupId].timerSquid) clearTimeout(partiesEnCours[groupId].timerSquid);
-    if (partiesEnCours[groupId].timerChronoLabyrinthe) clearTimeout(partiesEnCours[groupId].timerChronoLabyrinthe);
-    delete partiesEnCours[groupId];
-    delete timersInactivite[groupId];
-  }
-}
-
-function demarrerTimerInactivite(sock, groupId) {
-  if (timersInactivite[groupId]) clearTimeout(timersInactivite[groupId]);
-  timersInactivite[groupId] = setTimeout(async () => {
-    reinitialiserJeu(groupId);
-    await envoyerAvecDelai(sock, groupId, { text: "🧹 *Fermeture du salon pour inactivité.*" });
-  }, 3 * 60 * 1000);
-}
-
-async function terminerManche(groupId, sock, messageVictoire, originalMsg = null) {
-  const partie = partiesEnCours[groupId];
-  if (!partie) return;
-  if (partie.timerChronoLabyrinthe) clearTimeout(partie.timerChronoLabyrinthe);
-  partie.statut = 'ATTENTE_RELANCE';
-  demarrerTimerInactivite(sock, groupId);
-
-  const msgPrompt = `${messageVictoire}\n\n───────────────────\n🔄 *SESSION TERMINÉE !*\n👉 **.jouer** (relancer) | **.stop** (quitter)`;
-  await envoyerAvecDelai(sock, groupId, { text: msgPrompt }, {}, originalMsg);
 }
 
 // ==========================================
@@ -173,7 +119,8 @@ async function startBot() {
   const { version } = await fetchLatestBaileysVersion();
 
   const sock = makeWASocket({
-    version, auth: state,
+    version,
+    auth: state,
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
     browser: ["Ubuntu", "Chrome", "20.0.04"]
@@ -185,18 +132,25 @@ async function startBot() {
       try {
         let code = await sock.requestPairingCode(phoneNumber.replace(/[^0-9]/g, ""));
         console.log(`\n👉 CODE DE JUMELAGE : ${code?.match(/.{1,4}/g)?.join("-") || code}\n`);
-      } catch (err) { console.error("❌ Erreur Pairing Code :", err); }
+      } catch (err) {
+        console.error("❌ Erreur Pairing Code :", err);
+      }
     }, 4000);
   }
 
   sock.ev.on('creds.update', saveCreds);
+
   sock.ev.on('connection.update', (update) => {
-    if (update.connection === 'close' && update.lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) startBot();
-    if (update.connection === 'open') console.log('🟢 BOT TITAN PRÊT !');
+    const { connection, lastDisconnect } = update;
+    if (connection === 'close' && lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
+      startBot();
+    } else if (connection === 'open') {
+      console.log('🟢 BOT TITAN PRÊT ET OPÉRATIONNEL !');
+    }
   });
 
   // ==========================================
-  // 📩 GESTION DES MESSAGES
+  // 📩 TRAITEMENT DES MESSAGES
   // ==========================================
   sock.ev.on('messages.upsert', async (m) => {
     try {
@@ -207,66 +161,249 @@ async function startBot() {
       const senderJid = msg.key.participant || remoteJid;
       const cleanText = (msg.message.conversation || msg.message.extendedTextMessage?.text || "").trim();
       const lowerText = cleanText.toLowerCase();
+
       const jeuEnCours = partiesEnCours[remoteJid];
 
-      // --- MENU ---
+      demarrerTimerInactivite(sock, remoteJid);
+
+      // 📜 MENU GENERAL BOOSTÉ
       if (lowerText === '.menu' || lowerText === 'menu') {
-        const menuText = `🤖 *TITAN BOT - MENU* 🤖\n\n👁️ *.vv* | 📸 *.pp* | 📱 *.qr* [texte]\n🎮 *.labyrinthe* [ocean/espace/donjon/temple]\n🎲 *.de* | 🦑 *.squidgame* | 💀 *.roulette*\n🔢 *.chiffremystere* | 🎯 *.chasse-emoji*`;
+        const menuText = `
+✨ *━━━ 🤖 TITAN BOT ULTIMATE 🤖 ━━━* ✨
+
+👋 *Bienvenue dans le centre de commande !*
+
+👑 *──────── ⚙️ OUTILS & IA ────────*
+🔹 *.ia* [question] ➔ *IA Conversationnelle*
+🔹 *.dico* [mot] ➔ *Définition & Synonymes*
+🔹 *.love* [@nom] ➔ *Test de Compatibilité*
+🔹 *.citation* ➔ *Citation Inspirante (1/100)*
+🔹 *.qr* [texte/lien] ➔ *Générateur de QR Code*
+🔹 *.image* [recherche] ➔ *Chercher une photo sur Web*
+🔹 *.yt* [lien] ➔ *Télécharger une vidéo YouTube*
+
+🎮 *──────── 🕹️ MINI-JEUX ────────*
+🎲 *.de* ou *.d* ➔ *Battle Royale de Dés*
+🌊 *.labyrinthe* ➔ *Aventure & Survie (Ocean/Espace)*
+💀 *.roulette* ➔ *Roulette Russe (1/6)*
+🔢 *.chiffremystere* ➔ *Devine le Nombre (1-100)*
+🎯 *.chasse-emoji* ➔ *Épreuve de Rapidité*
+
+📋 *──────── 📌 REJOINDRE ────────*
+✍️ *.inscrire* [pseudo] ➔ *S'inscrire à une partie*
+🚀 *.jouer* ➔ *Lancer la session*
+🛑 *.stop* ➔ *Annuler la partie en cours*
+
+💡 *Note : Nettoyage automatique des salons après 2 min d'inactivité.*
+✨ *━━━━━━━━━━━━━━━━━━━━━━━━━* ✨`;
+
         await envoyerAvecDelai(sock, remoteJid, { text: menuText }, { quoted: msg }, msg);
         return;
       }
 
-      // --- QR CODE ---
+      // 🖼️ RECHERCHE D'IMAGE (.image)
+      if (lowerText.startsWith('.image')) {
+        const query = cleanText.replace(/^\.image\s*/i, '').trim();
+        if (!query) {
+          await envoyerAvecDelai(sock, remoteJid, { text: "⚠️ Précisez votre recherche ! (Exemple : `.image un chien`)" }, { quoted: msg }, msg);
+          return;
+        }
+
+        try {
+          const images = await google.image(query, { safe: false });
+          if (!images || images.length === 0) {
+            await envoyerAvecDelai(sock, remoteJid, { text: "❌ Aucune image trouvée pour cette recherche." }, { quoted: msg }, msg);
+            return;
+          }
+
+          const randomImg = images[Math.floor(Math.random() * Math.min(images.length, 5))];
+          
+          await envoyerAvecDelai(sock, remoteJid, { 
+            image: { url: randomImg.url }, 
+            caption: `🖼️ *Résultat pour :* ${query}` 
+          }, { quoted: msg }, msg);
+
+        } catch (err) {
+          console.error("Erreur recherche image :", err);
+          await envoyerAvecDelai(sock, remoteJid, { text: "⚠️ Impossible de récupérer l'image pour le moment." }, { quoted: msg }, msg);
+        }
+        return;
+      }
+
+      // 📥 TÉLÉCHARGEMENT DE VIDÉO YOUTUBE (.yt)
+      if (lowerText.startsWith('.yt') || lowerText.startsWith('.video')) {
+        const url = cleanText.split(" ")[1]?.trim();
+        if (!url || !ytdl.validateURL(url)) {
+          await envoyerAvecDelai(sock, remoteJid, { text: "⚠️ Veuillez fournir un lien YouTube valide ! (Exemple : `.yt https://youtube.com/...`)" }, { quoted: msg }, msg);
+          return;
+        }
+
+        try {
+          await envoyerAvecDelai(sock, remoteJid, { text: "⏳ *Téléchargement de la vidéo en cours...*" }, { quoted: msg }, msg);
+
+          const info = await ytdl.getInfo(url);
+          const format = ytdl.chooseFormat(info.formats, { quality: 'lowestvideo', filter: 'videoandaudio' });
+
+          await envoyerAvecDelai(sock, remoteJid, { 
+            video: { url: format.url }, 
+            caption: `🎥 *Titre :* ${info.videoDetails.title}` 
+          }, { quoted: msg }, msg);
+
+        } catch (err) {
+          console.error("Erreur téléchargement YouTube :", err);
+          await envoyerAvecDelai(sock, remoteJid, { text: "❌ Échec du téléchargement de la vidéo." }, { quoted: msg }, msg);
+        }
+        return;
+      }
+
+      // 📱 QR CODE
       if (lowerText.startsWith('.qr')) {
         const txt = cleanText.replace(/^\.qr\s*/i, '').trim();
-        if (!txt) return envoyerAvecDelai(sock, remoteJid, { text: "⚠️ Entrez un texte !" }, { quoted: msg }, msg);
+        if (!txt) return;
         const qrBuffer = await QRCode.toBuffer(txt, { margin: 2, scale: 8 });
         await envoyerAvecDelai(sock, remoteJid, { image: qrBuffer, caption: `📱 *QR Code :* ${txt}` }, { quoted: msg }, msg);
         return;
       }
 
-      // --- LABYRINTHE LOGIQUE DE DÉGÂTS (-10 HP) ---
-      if (jeuEnCours && jeuEnCours.type?.startsWith('LABYRINTHE') && cleanText.startsWith('@')) {
-        const action = cleanText.substring(1).trim().toLowerCase();
-        const donjon = jeuEnCours.donjon;
-        const etape = donjon.etapes[jeuEnCours.etapeIndex];
-
-        if (etape?.options?.[action] !== undefined) {
-          const suite = etape.options[action];
-          if (suite === "piege") {
-            jeuEnCours.hp -= 10; // Décrémentation de 10 HP
-            if (jeuEnCours.hp <= 0) {
-              await terminerManche(remoteJid, sock, `💀 *MORT !* 0% de santé restante.\n${donjon.mortMessage}`, msg);
-            } else {
-              await envoyerAvecDelai(sock, remoteJid, { text: `💥 *PIÈGE !* (-10 HP)\n🩸 *Santé restante :* ${jeuEnCours.hp}%` }, { quoted: msg }, msg);
-            }
-          } else if (typeof suite === 'number') {
-            jeuEnCours.etapeIndex = suite - 1;
-            const nouvEtape = donjon.etapes[jeuEnCours.etapeIndex];
-            if (nouvEtape.options === "victoire") {
-              await terminerManche(remoteJid, sock, `🏆 *VICTOIRE !* Donjon terminé avec ${jeuEnCours.hp}% HP !`, msg);
-            } else {
-              await envoyerAvecDelai(sock, remoteJid, { text: `📍 *AVANCÉE :*\n${nouvEtape.desc}` }, { quoted: msg }, msg);
-            }
-          }
+      // 📖 DICTIONNAIRE & SYNONYMES
+      if (lowerText.startsWith('.dico') || lowerText.startsWith('.def')) {
+        const mot = cleanText.split(" ")[1]?.toLowerCase();
+        if (!mot || !DICTIONNAIRE[mot]) {
+          await envoyerAvecDelai(sock, remoteJid, { text: `📖 Mots dispo : *${Object.keys(DICTIONNAIRE).join(', ')}*` }, { quoted: msg }, msg);
+          return;
         }
+        const data = DICTIONNAIRE[mot];
+        await envoyerAvecDelai(sock, remoteJid, { text: `📚 *${mot.toUpperCase()}*\n📝 ${data.def}\n🔄 *Synonymes :* ${data.syn.join(', ')}` }, { quoted: msg }, msg);
         return;
       }
 
-      // --- COMMANDES DE DÉMARRAGE DES LABYRINTHES ---
+      // 🤖 IA CONVERSATIONNELLE
+      if (lowerText.startsWith('.ia')) {
+        const question = cleanText.replace(/^\.ia\s*/i, '').trim();
+        if (!question) return;
+        const reponses = ["L'analyse suggère que la réponse est positive !", "C'est un sujet intéressant. Selon la logique, tout dépend du contexte.", "D'après mes données, c'est tout à fait possible."];
+        await envoyerAvecDelai(sock, remoteJid, { text: `🤖 *TITAN IA :* ${reponses[Math.floor(Math.random() * reponses.length)]}` }, { quoted: msg }, msg);
+        return;
+      }
+
+      // ❤️ TEST D'AMOUR
+      if (lowerText.startsWith('.love')) {
+        const score = Math.floor(Math.random() * 101);
+        let list = score > 70 ? COMMENTAIRES_LOVE.parfait : (score > 35 ? COMMENTAIRES_LOVE.moyen : COMMENTAIRES_LOVE.faible);
+        await envoyerAvecDelai(sock, remoteJid, { text: `💘 *COMPATIBILITÉ : ${score}%*\n💬 ${list[Math.floor(Math.random() * list.length)]}` }, { quoted: msg }, msg);
+        return;
+      }
+
+      // 📜 CITATION DU JOUR
+      if (lowerText === '.citation') {
+        const c = CITATIONS[Math.floor(Math.random() * CITATIONS.length)];
+        await envoyerAvecDelai(sock, remoteJid, { text: `📜 « ${c.c} »\n✍️ *${c.a}*` }, { quoted: msg }, msg);
+        return;
+      }
+
+      // 🎲 DÉ BATTLE (.de ou .d)
+      if (lowerText === '.de' || lowerText === '.d') {
+        reinitialiserJeu(remoteJid);
+        partiesEnCours[remoteJid] = { type: 'DE_BATTLE', statut: 'INSCRIPTION', joueurs: [], tourIndex: 0 };
+        await envoyerAvecDelai(sock, remoteJid, { text: `🎲 *SALON DÉ BATTLE OUVERT !*\n👉 **.inscrire** puis **.jouer** !` }, { quoted: msg }, msg);
+        return;
+      }
+
+      // 🌊 LABYRINTHE
       if (lowerText.startsWith('.labyrinthe')) {
         const mode = cleanText.split(" ")[1]?.toLowerCase();
         if (!mode || !ENVIRONNEMENTS_LABYRINTHE[mode]) {
-          await envoyerAvecDelai(sock, remoteJid, { text: "🌀 *Choix :* .labyrinthe ocean | espace | donjon | temple" }, { quoted: msg }, msg);
+          await envoyerAvecDelai(sock, remoteJid, { text: "🌀 Choix dispo : `.labyrinthe ocean` ou `.labyrinthe espace`" }, { quoted: msg }, msg);
           return;
         }
         reinitialiserJeu(remoteJid);
         partiesEnCours[remoteJid] = { type: 'LABYRINTHE', choixEnv: mode, statut: 'INSCRIPTION', joueurs: [] };
-        await envoyerAvecDelai(sock, remoteJid, { text: `🚨 *SALON OUVERT (${ENVIRONNEMENTS_LABYRINTHE[mode].nom}) !*\nTapez **.inscrire** puis **.jouer**` }, { quoted: msg }, msg);
+        await envoyerAvecDelai(sock, remoteJid, { text: `🚨 *SALON LABYRINTHE OUVERT !*\n👉 **.inscrire** puis **.jouer** !` }, { quoted: msg }, msg);
         return;
       }
 
-    } catch (err) { console.error("⚠️ Erreur traitement :", err); }
+      // 💀 ROULETTE RUSSE
+      if (lowerText === '.roulette') {
+        reinitialiserJeu(remoteJid);
+        partiesEnCours[remoteJid] = { type: 'ROULETTE', statut: 'EN_COURS', chambreBalle: Math.floor(Math.random() * 6) + 1, chambreActuelle: 1 };
+        await envoyerAvecDelai(sock, remoteJid, { text: `💀 *REVOLVER CHARGÉ (1/6) !*\n👉 Envoie *@tirer* !` }, { quoted: msg }, msg);
+        return;
+      }
+
+      // 🔢 CHIFFRE MYSTÈRE
+      if (lowerText === '.chiffremystere') {
+        reinitialiserJeu(remoteJid);
+        partiesEnCours[remoteJid] = { type: 'CHIFFRE_MYSTERE', statut: 'EN_COURS', solution: Math.floor(Math.random() * 100) + 1 };
+        await envoyerAvecDelai(sock, remoteJid, { text: `🔢 *CHIFFRE MYSTÈRE INITIALISÉ (1 à 100) !*\n👉 Répondez avec *@nombre* !` }, { quoted: msg }, msg);
+        return;
+      }
+
+      // 🎯 CHASSE EMOJI
+      if (lowerText === '.chasse-emoji') {
+        reinitialiserJeu(remoteJid);
+        const cible = EMOJIS_DICO[Math.floor(Math.random() * EMOJIS_DICO.length)];
+        partiesEnCours[remoteJid] = { type: 'CHASSE_EMOJI', statut: 'EN_COURS', cible };
+        await envoyerAvecDelai(sock, remoteJid, { text: `🎯 *RAPIDITÉ !* Premier à envoyer **@${cible}** gagne !` }, { quoted: msg }, msg);
+        return;
+      }
+
+      // ✍️ INSCRIPTION & DÉMARRAGE
+      if (lowerText.startsWith('.inscrire')) {
+        if (!jeuEnCours || jeuEnCours.statut !== 'INSCRIPTION') return;
+        const pseudo = cleanText.split(" ")[1] || "JOUEUR";
+        jeuEnCours.joueurs.push({ jid: senderJid, pseudo });
+        await envoyerAvecDelai(sock, remoteJid, { text: `✅ *${pseudo}* rejoint la partie !` }, { quoted: msg }, msg);
+        return;
+      }
+
+      if (lowerText === '.jouer') {
+        if (!jeuEnCours || jeuEnCours.statut !== 'INSCRIPTION') return;
+        jeuEnCours.statut = 'EN_COURS';
+        await envoyerAvecDelai(sock, remoteJid, { text: `🚀 *LA PARTIE COMMENCE !*` }, { quoted: msg }, msg);
+        return;
+      }
+
+      if (lowerText === '.stop') {
+        reinitialiserJeu(remoteJid);
+        await envoyerAvecDelai(sock, remoteJid, { text: "🛑 *Partie arrêtée.*" }, { quoted: msg }, msg);
+        return;
+      }
+
+      // 🎯 ACTIONS EN JEU (AVEC SIGNE @)
+      if (jeuEnCours && jeuEnCours.statut === 'EN_COURS' && cleanText.startsWith('@')) {
+        const action = cleanText.substring(1).trim().toLowerCase();
+
+        if (jeuEnCours.type === 'ROULETTE' && action === 'tirer') {
+          if (jeuEnCours.chambreBalle === jeuEnCours.chambreActuelle) {
+            reinitialiserJeu(remoteJid);
+            await envoyerAvecDelai(sock, remoteJid, { text: `💥 *BANG !* Perdu !` }, { quoted: msg }, msg);
+          } else {
+            jeuEnCours.chambreActuelle++;
+            await envoyerAvecDelai(sock, remoteJid, { text: `🔊 *CLIC !* Chambre vide. Au suivant !` }, { quoted: msg }, msg);
+          }
+        }
+
+        if (jeuEnCours.type === 'CHIFFRE_MYSTERE') {
+          const val = parseInt(action, 10);
+          if (val === jeuEnCours.solution) {
+            reinitialiserJeu(remoteJid);
+            await envoyerAvecDelai(sock, remoteJid, { text: `🏆 *BRAVO !* Le nombre était **${val}** !` }, { quoted: msg }, msg);
+          } else if (val < jeuEnCours.solution) {
+            await envoyerAvecDelai(sock, remoteJid, { text: `📈 C'est plus grand que ${val} !` }, { quoted: msg }, msg);
+          } else if (val > jeuEnCours.solution) {
+            await envoyerAvecDelai(sock, remoteJid, { text: `📉 C'est plus petit que ${val} !` }, { quoted: msg }, msg);
+          }
+        }
+
+        if (jeuEnCours.type === 'CHASSE_EMOJI' && action === jeuEnCours.cible.toLowerCase()) {
+          reinitialiserJeu(remoteJid);
+          await envoyerAvecDelai(sock, remoteJid, { text: `🏆 *GAGNÉ !* Vous avez été le plus rapide !` }, { quoted: msg }, msg);
+        }
+      }
+
+    } catch (err) {
+      console.error("⚠️ Erreur :", err);
+    }
   });
 }
 
