@@ -1,7 +1,7 @@
 {
   "name": "titan-bot",
   "version": "1.0.0",
-  "description": "Bot WhatsApp Titan Ultimate avec IA Gemini",
+  "description": "Bot WhatsApp Titan Ultimate",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
