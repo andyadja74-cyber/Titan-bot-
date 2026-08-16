@@ -9,7 +9,7 @@
   "dependencies": {
     "@whiskeysockets/baileys": "^6.5.0",
     "express": "^4.18.2",
-    "google-this": "^1.8.0",
+    "google-it": "^1.6.4",
     "pino": "^8.14.0",
     "qrcode": "^1.5.3",
     "ytdl-core": "^4.11.5"
