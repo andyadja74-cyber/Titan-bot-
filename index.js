@@ -33,7 +33,7 @@ const { Readable } = require('stream');
 // ==========================================
 // 🔑 CONFIGURATION CLÉ API GEMINI
 // ==========================================
-const GEMINI_API_KEY = "ENTREZ_VOTRE_CLE_API_GEMINI_ICI";
+const GEMINI_API_KEY = "AQ.Ab8RN6KDJ8wI-pQ1y7IlMU2BzS6szc5I-JF9RVjIGQnolUr_cA";
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // 🔗 IMPORTATION DES BANQUES DE DONNÉES (data.js)
