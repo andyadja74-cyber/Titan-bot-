@@ -3,17 +3,6 @@ const crypto = require('crypto');
 if (!globalThis.crypto) globalThis.crypto = crypto;
 
 const fs = require('fs');
-
-// 🧹 Nettoyage automatique au démarrage (pour réinitialiser la session corrompue)
-if (fs.existsSync('./auth_info')) {
-  try {
-    fs.rmSync('./auth_info', { recursive: true, force: true });
-    console.log("🗑️ Ancienne session auth_info supprimée avec succès.");
-  } catch (err) {
-    console.error("⚠️ Erreur lors du nettoyage :", err);
-  }
-}
-
 const express = require("express");
 const https = require("https");
 const {
@@ -133,7 +122,7 @@ async function startBot() {
     auth: state,
     logger: pino({ level: 'silent' }),
     printQRInTerminal: false,
-    browser: Browsers.ubuntu('Chrome'),
+    browser: Browsers.macOS('Desktop'), // Signature plus stable pour les Pairing Codes
     connectTimeoutMs: 60000,
     defaultQueryTimeoutMs: 60000,
     keepAliveIntervalMs: 10000
@@ -146,7 +135,11 @@ async function startBot() {
 
     if (connection === 'close') {
       const statusCode = lastDisconnect?.error?.output?.statusCode;
-      if (statusCode !== DisconnectReason.loggedOut) {
+      pairingCodeDemande = false; // Réinitialise pour autoriser un nouveau code au besoin
+      if (statusCode === DisconnectReason.loggedOut) {
+        if (fs.existsSync('./auth_info')) fs.rmSync('./auth_info', { recursive: true, force: true });
+        startBot();
+      } else {
         setTimeout(() => startBot(), 3000);
       }
     } else if (connection === 'open') {
@@ -154,7 +147,7 @@ async function startBot() {
       pairingCodeDemande = false;
     }
 
-    // Demande synchronisée du Pairing Code après stabilisation du Socket
+    // Génération du code si non enregistré
     if (!sock.authState.creds.registered && !pairingCodeDemande) {
       pairingCodeDemande = true;
       const rawNumber = process.env.PHONE_NUMBER || "2250141606159";
@@ -171,7 +164,7 @@ async function startBot() {
           console.error("❌ Erreur Pairing Code :", err);
           pairingCodeDemande = false;
         }
-      }, 2000);
+      }, 3000);
     }
   });
 
@@ -698,7 +691,7 @@ function declencherJeuLabyrinthe(sock, remoteJid, msg) {
 
   const textIntro = `🚪 *LABYRINTHE MULTI-JOUEURS (1V1 & ÉQUIPES)* 🚪\n\n` +
     `Traversez le labyrinthe en équipe ou à 2 contre 2 / 4 contre 4 !\n` +
-    `À chaque étape, le bot passe le relais au joueur suivant d'une équipe adverse !\n\n` +
+    `À chaque étape, le bot passes le relais au joueur suivant d'une équipe adverse !\n\n` +
     `👉 Rejoignez avec \`.joindre A\` ou \`.joindre B\` puis tapez **.lancer** !`;
 
   return envoyerAvecDelai(sock, remoteJid, { text: textIntro }, { quoted: msg }, msg);
