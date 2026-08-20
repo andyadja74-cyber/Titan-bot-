@@ -37,7 +37,7 @@ ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 // ==========================================
 // 🔑 CONFIGURATION CLÉ API GEMINI
 // ==========================================
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "ENTREZ_VOTRE_CLE_API_GEMINI_ICI";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AQ.Ab8RN6I7BdoBx9K8z_BFaGBAbqCj_UEA2xI7nXZrDs1Z9AQw_w";
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // 🔗 IMPORTATION DES BANQUES DE DONNÉES ET ÉTATS (data.js)
